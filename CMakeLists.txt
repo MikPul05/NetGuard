@@ -8,7 +8,11 @@ add_executable(NetGuard
         include/pcap_importer/input_file.h
         src/pcap_importer/input_file.cpp
         include/pcap_importer/packet_reader.h
-        src/pcap_importer/packet_reader.cpp)
+        src/pcap_importer/packet_reader.cpp
+        include/pcap_importer/validate_link.h
+        src/pcap_importer/validate_link.cpp
+        include/pcap_importer/packet_decoder.h
+        src/pcap_importer/packet_decoder.cpp)
 
 find_path(PCAP_INCLUDE_DIR NAMES pcap/pcap.h REQUIRED)
 find_library(PCAP_LIBRARY NAMES pcap REQUIRED)

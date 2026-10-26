@@ -1059,3 +1059,4 @@ CMakeUserPresets.json
 /*.pdb
 
 /DNSlookup.pcapng
+*.pdf

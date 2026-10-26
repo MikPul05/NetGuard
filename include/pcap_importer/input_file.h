@@ -1,4 +1,3 @@
-
 #ifndef NETGUARD_INPUT_FILE_H
 #define NETGUARD_INPUT_FILE_H
 
