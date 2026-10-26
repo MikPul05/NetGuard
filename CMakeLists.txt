@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD 14)
 add_executable(NetGuard
         src/main.cpp
         include/pcap_importer/input_file.h
-        src/pcap_importer/input_file.cpp)
+        src/pcap_importer/input_file.cpp
+        include/pcap_importer/packet_reader.h
+        src/pcap_importer/packet_reader.cpp)
 
 find_path(PCAP_INCLUDE_DIR NAMES pcap/pcap.h REQUIRED)
 find_library(PCAP_LIBRARY NAMES pcap REQUIRED)

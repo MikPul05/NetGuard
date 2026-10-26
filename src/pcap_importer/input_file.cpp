@@ -1,4 +1,4 @@
-#include "pcap_importer/input_file.h"
+#include "../../include/pcap_importer/input_file.h"
 
 pcap_t* open_capture_file(const std::string& path, std::string& error_message)
 {
