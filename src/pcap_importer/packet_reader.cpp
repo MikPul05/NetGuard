@@ -7,6 +7,7 @@ PacketReadStatus read_next_packet(pcap_t* capture, Packet& packet, std::string& 
     struct pcap_pkthdr* header = nullptr;
     const u_char* packet_data = nullptr;
 
+    //https://www.tcpdump.org/manpages/pcap_next_ex.3pcap.html
     const int result = pcap_next_ex(capture, &header, &packet_data);
 
     switch (result)

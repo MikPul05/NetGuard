@@ -3,6 +3,7 @@
 #include <chrono>
 #include <string>
 
+//Struct for a decoded packet
 struct DecodedPacket
 {
     std::string destination_ip;

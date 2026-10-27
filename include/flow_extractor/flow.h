@@ -3,6 +3,7 @@
 #include <chrono>
 #include <string>
 
+//Custom struct for defining each flow.
 struct Flow
 {
     std::string destination_ip;
@@ -22,6 +23,7 @@ struct Flow
 
 };
 
+// Key struct for Flow to use in an unordered map in flow_extractor::process_packet
 struct FlowKey
 {
     std::string source_ip;

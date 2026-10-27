@@ -103,7 +103,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
 
 
     //The total length of the IP packet is encoded in the 17th and 18th byte
-    const std::uint16_t ipv4_total_length = (static_cast<std::uint16_t>(packet.data[16]) << 8) | static_cast<std::uint16_t>(packet.data[17]);
+    const std::uint16_t ipv4_total_length = (static_cast<std::uint16_t>(packet.data[16] << 8)) | static_cast<std::uint16_t>(packet.data[17]);
 
     //The whole IP packet HAS to be at least the size of the header, otherwise its invalid
     if (ipv4_total_length < ipv4_header_length)
@@ -114,6 +114,8 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
 
     //Amount of bytes after the IPv4 header, so its where TCP or UDP is
     const std::size_t ip_payload_length = ipv4_total_length - ipv4_header_length;
+
+    //This branch is setting the flags
     //6 is TCP, 17 is UDP
     if (decoded_packet.protocol == 6)
     {
@@ -146,6 +148,19 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
             error_message = "Packet too short for UDP header";
             return false;
         }
+
+        //UDP header is always 8 bytes, so we calculate the whole UDP length
+        const std::uint16_t udp_length =
+            (static_cast<std::uint16_t>(packet.data[transport_offset + 4] << 8)) |
+                (static_cast<std::uint16_t>(packet.data[transport_offset + 5]));
+
+        //if less than 8 then its invalid, since header must have 8 bytes
+        if (udp_length < 8 || udp_length < ip_payload_length)
+        {
+            error_message = "Invalid UDP length";
+            return false;
+        }
+
         //UDP has no TCP flags
         decoded_packet.tcp_flags = 0;
     }
@@ -159,7 +174,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
     decoded_packet.timestamp = std::chrono::seconds(packet.header.ts.tv_sec) + std::chrono::microseconds(packet.header.ts.tv_usec);
 
     //Original packet length according to PCAP file
-    decoded_packet.packet_length = packet.header.len;
+    decoded_packet.packet_length = ipv4_total_length;
 
 
     return true;

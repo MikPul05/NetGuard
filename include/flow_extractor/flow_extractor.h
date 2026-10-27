@@ -13,7 +13,7 @@ class FlowExtractor
         std::unordered_map<FlowKey, Flow, FlowKeyHash> active_flows;
 
     public:
-        void process_packet(const Packet&);
+        bool process_packet(const Packet&);
 
         std::vector<Flow> finish();
 

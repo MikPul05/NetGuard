@@ -35,6 +35,7 @@ int main()
     std::size_t ipv4_packet_count = 0;
     std::size_t ipv6_packet_count = 0;
     std::size_t other_packet_count = 0;
+    std::size_t skipped_ipv4_packet_count = 0;
     std::uint16_t ethernet_type = 0;
     FlowExtractor flow_extractor;
     bool loop = true;
@@ -45,7 +46,7 @@ int main()
         {
             case PacketReadStatus::PacketRead:
                 packet_count++;
-                flow_extractor.process_packet(packet);
+
                 if (!extract_ethernet_type(packet, ethernet_type, error_message))
                 {
                     malformed_packet_count++;
@@ -55,6 +56,10 @@ int main()
                 else if (ethernet_type == 0x0800) //IPv4
                 {
                     ipv4_packet_count++;
+                    if (!flow_extractor.process_packet(packet))
+                    {
+                        skipped_ipv4_packet_count++;
+                    }
                 }
                 else if (ethernet_type == 0x86DD) //IPv6
                 {
@@ -81,13 +86,30 @@ int main()
     }
 
 
-
+    std::vector<Flow> flows = flow_extractor.finish();
     std::cout<<"Packets read: "<<packet_count<<'\n';
     std::cout<<"Malformed packets: "<<malformed_packet_count<<'\n';
     std::cout<<"IPv4: "<<ipv4_packet_count<<'\n';
     std::cout<<"IPv6: "<<ipv6_packet_count<<'\n';
+    std::cout<<"Skipped IPv4: "<<skipped_ipv4_packet_count<<'\n';
     std::cout<<"Other packets: "<<other_packet_count<<'\n';
-
+    std::cout<<"Amount of flows captured: "<<flows.size()<<'\n';
+    for (const Flow& flow : flows)
+    {
+        std::cout << flow.source_ip << ':' << flow.source_port
+                  << " -> " << flow.destination_ip << ':' << flow.destination_port
+                  << ", protocol: " << flow.protocol
+                  << ", first packet time (microseconds since Unix epoch): "
+                  << flow.first_packet_time.count()
+                  << ", packets: " << flow.packet_count
+                  << ", bytes: " << flow.bytes_transferred
+                  << ", duration (microseconds): " << flow.duration.count()
+                  << ", SYN: " << flow.tcp_syn_count
+                  << ", ACK: " << flow.tcp_ack_count
+                  << ", FIN: " << flow.tcp_fin_count
+                  << ", RST: " << flow.tcp_rst_count
+                  << '\n';
+    }
 
     pcap_close(capture);
     return 0;
