@@ -111,6 +111,12 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
         error_message = "Invalid IPv4 total length";
         return false;
     }
+    //check if the whole IPv4 packet fits in the data read from the file
+    if (packet.data.size() < 14 + ipv4_total_length)
+    {
+        error_message = "Truncated IPv4 packet";
+        return false;
+    }
 
     //Amount of bytes after the IPv4 header, so its where TCP or UDP is
     const std::size_t ip_payload_length = ipv4_total_length - ipv4_header_length;
@@ -129,6 +135,13 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
         //The length of the TCP header is in the first 4 bits of the 13th byte of the header
         //Given value means groups of 4 bytes
         const std::size_t tcp_header_length = (packet.data[transport_offset + 12] >> 4) * 4;
+
+        //check if TCP header fits inside the IPv4 payload
+        if (tcp_header_length > ip_payload_length)
+        {
+            error_message = "TCP header is longer than the IPv4 payload";
+            return false;
+        }
 
         //TCP header is at least 20 bytes and length of IP and available data must be the whole TCP header
         if (tcp_header_length < 20 || ip_payload_length < tcp_header_length || packet.data.size() < transport_offset + tcp_header_length)
@@ -155,7 +168,8 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
                 (static_cast<std::uint16_t>(packet.data[transport_offset + 5]));
 
         //if less than 8 then its invalid, since header must have 8 bytes
-        if (udp_length < 8 || udp_length < ip_payload_length)
+        //UDP length must not exceed the IPv4 payload length
+        if (udp_length < 8 || udp_length > ip_payload_length)
         {
             error_message = "Invalid UDP length";
             return false;
@@ -173,7 +187,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
     //Time of the packet saved as seconds and microseconds
     decoded_packet.timestamp = std::chrono::seconds(packet.header.ts.tv_sec) + std::chrono::microseconds(packet.header.ts.tv_usec);
 
-    //Original packet length according to PCAP file
+    //IPv4 packet length including its header
     decoded_packet.packet_length = ipv4_total_length;
 
 
