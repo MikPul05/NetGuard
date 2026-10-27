@@ -15,7 +15,7 @@ enum class PacketReadStatus
 {
     EndOfFile,
     PacketRead,
-    Error,
+    Error
 };
 
 PacketReadStatus read_next_packet(pcap_t* capture, Packet& packet, std::string& error_message);
