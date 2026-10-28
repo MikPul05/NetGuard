@@ -2,8 +2,9 @@
 #include "../../include/flow_extractor/decoded_packet.h"
 
 
-bool extract_ethernet_type(const Packet& packet, std::uint16_t& ethernet_type, std::uint16_t& ip_offset, std::string& error_message)
+bool extract_ethernet_type(const Packet& packet, std::uint16_t& ethernet_type, std::uint16_t& ip_offset, std::vector<std::uint16_t>& vlan_ids, std::string& error_message)
 {
+    vlan_ids.clear();
     error_message.clear();
     //Ethernet header has 14 bytes
     //if < 14 bytes, then we can not read the EtherType field
@@ -15,20 +16,27 @@ bool extract_ethernet_type(const Packet& packet, std::uint16_t& ethernet_type, s
     //Ethernet Type is located in the 13th and 14th byte of the ethernet header
     ethernet_type = (packet.data[12] <<8 ) | packet.data[13];
     ip_offset = 14;
-    if (ethernet_type == 0x8100)
+    std::size_t type_offset = 12;
+    ethernet_type = (static_cast<std::uint16_t>(packet.data[type_offset]) << 8) | packet.data[type_offset + 1];
+
+    while (ethernet_type == 0x8100 || ethernet_type == 0x88A8)
     {
-        if (packet.data.size() >= 18)
+        // We check if VLAN tag and following EtherType are present
+        //https://en.wikipedia.org/wiki/IEEE_802.1Q
+        if (packet.data.size() < type_offset + 6)
         {
-            ip_offset = 18;
-            ethernet_type = (packet.data[16] <<8 ) | packet.data[17];
-        }
-        else
-        {
-            error_message = "VLAN tagged ethernet frame too short";
+            error_message = "VLAN tagged Ethernet frame is too short";
             return false;
         }
 
+        const std::uint16_t tci = (static_cast<std::uint16_t>(packet.data[type_offset + 2]) << 8) |packet.data[type_offset + 3];
+
+        vlan_ids.push_back(tci & 0x0FFF);
+        type_offset += 4;
+        ethernet_type = (static_cast<std::uint16_t>(packet.data[type_offset]) << 8) | packet.data[type_offset + 1];
     }
+
+    ip_offset = type_offset + 2;
     return true;
 }
 
@@ -45,7 +53,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
 
     std::uint16_t ethernet_type;
     std::uint16_t ip_offset;
-    if (!extract_ethernet_type(packet, ethernet_type, ip_offset, error_message)) return false;
+    if (!extract_ethernet_type(packet, ethernet_type, ip_offset, decoded_packet.vlan_ids, error_message)) return false;
 
     //0x0800 is IPv4
     if (ethernet_type != 0x0800)

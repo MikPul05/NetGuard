@@ -33,6 +33,7 @@ bool FlowExtractor::process_packet(const Packet& packet)
         decoded_packet.destination_ip,
         decoded_packet.source_port,
         decoded_packet.destination_port,
+        decoded_packet.vlan_ids,
         decoded_packet.protocol
     };
 
@@ -68,6 +69,7 @@ bool FlowExtractor::process_packet(const Packet& packet)
         flow.last_packet_time = decoded_packet.timestamp;
         flow.packet_count = 1;
         flow.bytes_transferred = decoded_packet.packet_length;
+        flow.vlan_ids = decoded_packet.vlan_ids;
         update_tcp_flag_counts(flow, decoded_packet);
         active_flows[flow_key] = flow;
     }

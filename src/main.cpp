@@ -39,7 +39,10 @@ int main()
     std::uint16_t ethernet_type = 0;
     std::uint16_t ip_offset = 0;
     FlowExtractor flow_extractor;
+    std::vector<std::uint16_t> vlan_ids;
+    std::chrono::microseconds packet_time = std::chrono::microseconds::zero();
     bool loop = true;
+    bool said = false;
     while (loop)
     {
         PacketReadStatus status = read_next_packet(capture, packet, error_message);
@@ -47,8 +50,14 @@ int main()
         {
             case PacketReadStatus::PacketRead:
                 packet_count++;
+                if (std::chrono::microseconds(packet.header.ts.tv_usec)+std::chrono::microseconds(packet.header.ts.tv_sec) < packet_time && said == false)
+                {
+                    std::cerr<<"Data in file is not chronological"<<'\n';
+                    said = true;
+                }
+                packet_time = std::chrono::microseconds(packet.header.ts.tv_usec);
 
-                if (!extract_ethernet_type(packet, ethernet_type, ip_offset, error_message))
+                if (!extract_ethernet_type(packet, ethernet_type, ip_offset, vlan_ids, error_message))
                 {
                     malformed_packet_count++;
                     std::cerr<<"Skipping malformed packet: "<<packet_count<<":"<<error_message<<"\n";

@@ -14,6 +14,7 @@ struct DecodedPacket
     std::chrono::microseconds timestamp;
     std::size_t packet_length;
     std::uint8_t tcp_flags;
+    std::vector<std::uint16_t> vlan_ids;
 };
 
 #endif //NETGUARD_DECODED_PACKET_H

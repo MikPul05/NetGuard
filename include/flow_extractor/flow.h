@@ -13,13 +13,15 @@ struct Flow
     unsigned int protocol = 0;
     std::chrono::microseconds first_packet_time;
     std::chrono::microseconds last_packet_time;
+    std::vector<std::uint16_t> vlan_ids;
     std::uint64_t packet_count = 0;
-    std::uint64_t bytes_transferred = 0;
     std::uint64_t tcp_syn_count = 0;
     std::uint64_t tcp_ack_count = 0;
     std::uint64_t tcp_fin_count = 0;
     std::uint64_t tcp_rst_count = 0;
+    std::uint64_t bytes_transferred = 0;
     std::chrono::microseconds duration;
+
 
 };
 
@@ -30,6 +32,7 @@ struct FlowKey
     std::string destination_ip;
     std::uint16_t source_port;
     std::uint16_t destination_port;
+    std::vector<std::uint16_t> vlan_ids;
     unsigned int protocol;
 
     bool operator==(const FlowKey& other) const
@@ -38,7 +41,8 @@ struct FlowKey
             destination_ip == other.destination_ip &&
                 source_port == other.source_port &&
                     destination_port == other.destination_port &&
-                        protocol == other.protocol;
+                        protocol == other.protocol &&
+                            vlan_ids == other.vlan_ids;
     }
 };
 
@@ -62,6 +66,10 @@ struct FlowKeyHash
         hash_combine(seed, key.source_port);
         hash_combine(seed, key.destination_port);
         hash_combine(seed, key.protocol);
+        for (auto id : key.vlan_ids)
+        {
+            hash_combine(seed, id);
+        }
 
         return seed;
     }
