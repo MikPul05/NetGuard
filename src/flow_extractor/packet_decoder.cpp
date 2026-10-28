@@ -2,7 +2,7 @@
 #include "../../include/flow_extractor/decoded_packet.h"
 
 
-bool extract_ethernet_type(const Packet& packet, std::uint16_t& ethernet_type, std::string& error_message)
+bool extract_ethernet_type(const Packet& packet, std::uint16_t& ethernet_type, std::uint16_t& ip_offset, std::string& error_message)
 {
     error_message.clear();
     //Ethernet header has 14 bytes
@@ -14,6 +14,21 @@ bool extract_ethernet_type(const Packet& packet, std::uint16_t& ethernet_type, s
     }
     //Ethernet Type is located in the 13th and 14th byte of the ethernet header
     ethernet_type = (packet.data[12] <<8 ) | packet.data[13];
+    ip_offset = 14;
+    if (ethernet_type == 0x8100)
+    {
+        if (packet.data.size() >= 18)
+        {
+            ip_offset = 18;
+            ethernet_type = (packet.data[16] <<8 ) | packet.data[17];
+        }
+        else
+        {
+            error_message = "VLAN tagged ethernet frame too short";
+            return false;
+        }
+
+    }
     return true;
 }
 
@@ -29,7 +44,8 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
     }
 
     std::uint16_t ethernet_type;
-    if (!extract_ethernet_type(packet, ethernet_type, error_message)) return false;
+    std::uint16_t ip_offset;
+    if (!extract_ethernet_type(packet, ethernet_type, ip_offset, error_message)) return false;
 
     //0x0800 is IPv4
     if (ethernet_type != 0x0800)
@@ -38,7 +54,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
         return false;
     }
     //Ethernet is 14 bytes + minimal IPv4 header which is 20 bytes
-    if (packet.data.size() < 34)
+    if (packet.data.size() < ip_offset + 20)
     {
         error_message = "Packet too small for IPv4 header";
         return false;
@@ -47,7 +63,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
 
     //First 4 bits of the 15th byte have the ip version (first byte of the IPv4 header, since ethernet is 14bytes, and its first)
     //4 is for Ipv4
-    unsigned char ip_version = packet.data[14] >> 4;
+    unsigned char ip_version = packet.data[ip_offset] >> 4;
     if (ip_version != 4)
     {
         error_message = "Invalid IP version in IPv4 packet";
@@ -55,9 +71,9 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
     }
 
     //The last 4 bits of the 15th byte (First field in the IPv4 header) tell us the length of the IPv4 header (min 20 bytes, max 60bytes)
-    std::size_t ipv4_header_length = (packet.data[14] & 0x0f) * 4;
+    std::size_t ipv4_header_length = (packet.data[ip_offset] & 0x0f) * 4;
     //transport offset is the place after Ethernet and IPv4 header
-    std::size_t transport_offset = 14 + ipv4_header_length;
+    std::size_t transport_offset = ip_offset + ipv4_header_length;
 
     //IPv4 header can not be smaller than 20 bytes AND we check if all of its bytes have been saved to packet.data
     //14 bytes from Ethernet + ipv4 header length
@@ -68,7 +84,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
     }
 
     //Bytes 21 and 22 (IPv4 Flags, IPv4 7th and 8th byte) contain the fragmentation flags and fragment offest
-    const std::uint16_t fragment_info = (static_cast<std::uint16_t>(packet.data[20]) << 8) | static_cast<std::uint16_t>(packet.data[21]);
+    const std::uint16_t fragment_info = (static_cast<std::uint16_t>(packet.data[ip_offset + 6]) << 8) | static_cast<std::uint16_t>(packet.data[ip_offset + 7]);
 
     //we throw out fragmented frames for now
     if ((fragment_info & 0x3FFF) != 0)
@@ -79,31 +95,30 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
 
     //Protocol field is the 10th byte of the IPv4 header (+ 14 bytes from ethernet, so its index in data is 23, since we count from 0)
     //here we check if its TCP (6) or UDP (17)
-    if (packet.data[23] != 6 && packet.data[23] != 17)
+    if (packet.data[ip_offset + 9] != 6 && packet.data[ip_offset + 9] != 17)
     {
         error_message = "Unsupported protocol";
         return false;
     }
 
     //IPv4 addresses are always in these positions in the header
-    //These packet.data indexes ASSUME Ethernet without VLAN tag
     decoded_packet.source_ip =
-        std::to_string(packet.data[26]) + "." +
-            std::to_string(packet.data[27]) + "." +
-                std::to_string(packet.data[28]) + "." +
-                    std::to_string(packet.data[29]);
+        std::to_string(packet.data[ip_offset + 12]) + "." +
+            std::to_string(packet.data[ip_offset + 13]) + "." +
+                std::to_string(packet.data[ip_offset + 14]) + "." +
+                    std::to_string(packet.data[ip_offset + 15]);
 
     decoded_packet.destination_ip =
-        std::to_string(packet.data[30]) + "." +
-            std::to_string(packet.data[31]) + "." +
-                std::to_string(packet.data[32]) + "." +
-                    std::to_string(packet.data[33]);
+        std::to_string(packet.data[ip_offset + 16]) + "." +
+            std::to_string(packet.data[ip_offset + 17]) + "." +
+                std::to_string(packet.data[ip_offset + 18]) + "." +
+                    std::to_string(packet.data[ip_offset + 19]);
 
-    decoded_packet.protocol = packet.data[23];
+    decoded_packet.protocol = packet.data[ip_offset + 9];
 
 
     //The total length of the IP packet is encoded in the 17th and 18th byte
-    const std::uint16_t ipv4_total_length = (static_cast<std::uint16_t>(packet.data[16] << 8)) | static_cast<std::uint16_t>(packet.data[17]);
+    const std::uint16_t ipv4_total_length = (static_cast<std::uint16_t>(packet.data[ip_offset+2] << 8)) | static_cast<std::uint16_t>(packet.data[ip_offset+3]);
 
     //The whole IP packet HAS to be at least the size of the header, otherwise its invalid
     if (ipv4_total_length < ipv4_header_length)
@@ -112,7 +127,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
         return false;
     }
     //check if the whole IPv4 packet fits in the data read from the file
-    if (packet.data.size() < 14 + ipv4_total_length)
+    if (packet.data.size() < ip_offset + ipv4_total_length)
     {
         error_message = "Truncated IPv4 packet";
         return false;

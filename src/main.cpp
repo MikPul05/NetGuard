@@ -37,6 +37,7 @@ int main()
     std::size_t other_packet_count = 0;
     std::size_t skipped_ipv4_packet_count = 0;
     std::uint16_t ethernet_type = 0;
+    std::uint16_t ip_offset = 0;
     FlowExtractor flow_extractor;
     bool loop = true;
     while (loop)
@@ -47,7 +48,7 @@ int main()
             case PacketReadStatus::PacketRead:
                 packet_count++;
 
-                if (!extract_ethernet_type(packet, ethernet_type, error_message))
+                if (!extract_ethernet_type(packet, ethernet_type, ip_offset, error_message))
                 {
                     malformed_packet_count++;
                     std::cerr<<"Skipping malformed packet: "<<packet_count<<":"<<error_message<<"\n";

@@ -10,13 +10,12 @@ packet grouping into directional flows
 
 normalizing flow data
 
+VLAN handling
 
 
 ### What we still need to implement:
 
 IPv6 decoding and grouping
-
-VLAN tagged Ethernet support
 
 Handling of fragmented IPv4 packets
 
