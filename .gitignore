@@ -1060,3 +1060,4 @@ CMakeUserPresets.json
 
 /DNSlookup.pcapng
 *.pdf
+*.jsonl

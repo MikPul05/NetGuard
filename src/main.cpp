@@ -1,12 +1,14 @@
 #include <iostream>
 #include <string>
 #include <pcap/pcap.h>
+#include <fstream>
 
 #include "../include/flow_extractor/flow_extractor.h"
 #include "../include/pcap_importer/input_file.h"
 #include "../include/pcap_importer/packet_reader.h"
 #include "../include/pcap_importer/validate_link.h"
 #include "../include/flow_extractor/packet_decoder.h"
+#include "../include/flow_extractor/flow_serializer.h"
 
 int main()
 {
@@ -50,12 +52,14 @@ int main()
         {
             case PacketReadStatus::PacketRead:
                 packet_count++;
-                if (std::chrono::microseconds(packet.header.ts.tv_usec)+std::chrono::microseconds(packet.header.ts.tv_sec) < packet_time && said == false)
+            const auto current_packet_time = std::chrono::seconds(packet.header.ts.tv_sec) + std::chrono::microseconds(packet.header.ts.tv_usec);
+
+                if (current_packet_time < packet_time && said == false)
                 {
                     std::cerr<<"Data in file is not chronological"<<'\n';
                     said = true;
                 }
-                packet_time = std::chrono::microseconds(packet.header.ts.tv_usec);
+                packet_time = current_packet_time;
 
                 if (!extract_ethernet_type(packet, ethernet_type, ip_offset, vlan_ids, error_message))
                 {
@@ -97,29 +101,65 @@ int main()
 
 
     std::vector<Flow> flows = flow_extractor.finish();
-    std::cout<<"Packets read: "<<packet_count<<'\n';
-    std::cout<<"Malformed packets: "<<malformed_packet_count<<'\n';
-    std::cout<<"IPv4: "<<ipv4_packet_count<<'\n';
-    std::cout<<"IPv6: "<<ipv6_packet_count<<'\n';
-    std::cout<<"Skipped IPv4: "<<skipped_ipv4_packet_count<<'\n';
-    std::cout<<"Other packets: "<<other_packet_count<<'\n';
-    std::cout<<"Amount of flows captured: "<<flows.size()<<'\n';
+
+    std::string output_path;
+    std::ofstream json_file(output_path);
+    while (!json_file.is_open())
+    {
+        std::cout << "Enter the path for the JSONL output file: ";
+
+        if (!std::getline(std::cin, output_path))
+        {
+            std::cerr << "No output path provided\n";
+            pcap_close(capture);
+            return 1;
+        }
+
+        json_file.clear();
+        json_file.open(output_path);
+
+        if (!json_file.is_open())
+        {
+            std::cerr << "Could not open that path. Try again.\n";
+        }
+    }
+
     for (const Flow& flow : flows)
     {
-        std::cout << flow.source_ip << ':' << flow.source_port
-                  << " -> " << flow.destination_ip << ':' << flow.destination_port
-                  << ", protocol: " << flow.protocol
-                  << ", first packet time (microseconds since Unix epoch): "
-                  << flow.first_packet_time.count()
-                  << ", packets: " << flow.packet_count
-                  << ", bytes: " << flow.bytes_transferred
-                  << ", duration (microseconds): " << flow.duration.count()
-                  << ", SYN: " << flow.tcp_syn_count
-                  << ", ACK: " << flow.tcp_ack_count
-                  << ", FIN: " << flow.tcp_fin_count
-                  << ", RST: " << flow.tcp_rst_count
-                  << '\n';
+        json_file << serialize_flow_json(flow) << '\n';
     }
+
+    json_file.close();
+    if (!json_file)
+    {
+        std::cerr << "Error while writing the JSONL file\n";
+        pcap_close(capture);
+        return 1;
+    }
+
+    // std::cout<<"Packets read: "<<packet_count<<'\n';
+    // std::cout<<"Malformed packets: "<<malformed_packet_count<<'\n';
+    // std::cout<<"IPv4: "<<ipv4_packet_count<<'\n';
+    // std::cout<<"IPv6: "<<ipv6_packet_count<<'\n';
+    // std::cout<<"Skipped IPv4: "<<skipped_ipv4_packet_count<<'\n';
+    // std::cout<<"Other packets: "<<other_packet_count<<'\n';
+    // std::cout<<"Amount of flows captured: "<<flows.size()<<'\n';
+    // for (const Flow& flow : flows)
+    // {
+    //     std::cout << flow.source_ip << ':' << flow.source_port
+    //               << " -> " << flow.destination_ip << ':' << flow.destination_port
+    //               << ", protocol: " << flow.protocol
+    //               << ", first packet time (microseconds since Unix epoch): "
+    //               << flow.first_packet_time.count()
+    //               << ", packets: " << flow.packet_count
+    //               << ", bytes: " << flow.bytes_transferred
+    //               << ", duration (microseconds): " << flow.duration.count()
+    //               << ", SYN: " << flow.tcp_syn_count
+    //               << ", ACK: " << flow.tcp_ack_count
+    //               << ", FIN: " << flow.tcp_fin_count
+    //               << ", RST: " << flow.tcp_rst_count
+    //               << '\n';
+    // }
 
     pcap_close(capture);
     return 0;

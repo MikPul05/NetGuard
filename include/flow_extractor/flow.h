@@ -2,6 +2,7 @@
 #define NETGUARD_FLOW_H
 #include <chrono>
 #include <string>
+#include <vector>
 
 //Custom struct for defining each flow.
 struct Flow

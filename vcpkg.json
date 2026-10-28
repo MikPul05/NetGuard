@@ -2,6 +2,7 @@
   "name": "netguard",
   "version-string": "0.1.0",
   "dependencies": [
-    "libpcap"
+    "libpcap",
+    "rapidjson"
   ]
 }

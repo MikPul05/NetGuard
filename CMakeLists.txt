@@ -16,10 +16,16 @@ add_executable(NetGuard
         include/flow_extractor/flow.h
         include/flow_extractor/flow_extractor.h
         src/flow_extractor/flow_extractor.cpp
-        include/flow_extractor/decoded_packet.h)
+        include/flow_extractor/decoded_packet.h
+        include/flow_extractor/flow_serializer.h
+        src/flow_extractor/flow_serializer.cpp)
 
 find_path(PCAP_INCLUDE_DIR NAMES pcap/pcap.h REQUIRED)
 find_library(PCAP_LIBRARY NAMES pcap REQUIRED)
 
 target_include_directories(NetGuard PRIVATE ${PCAP_INCLUDE_DIR})
 target_link_libraries(NetGuard PRIVATE ${PCAP_LIBRARY})
+
+find_package(RapidJSON CONFIG REQUIRED)
+target_link_libraries(NetGuard PRIVATE RapidJSON rapidjson)
+target_include_directories(NetGuard PRIVATE ${PCAP_INCLUDE_DIR} ${RAPIDJSON_INCLUDE_DIRS})
