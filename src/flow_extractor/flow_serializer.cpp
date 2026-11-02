@@ -52,6 +52,29 @@ std::string serialize_flow_json(const Flow& flow)
         writer.Uint(vlan_id);
     }
     writer.EndArray();
+    if (flow.protocol == 58)
+    {
+        writer.Key("icmpv6");
+        writer.StartObject();
+
+        writer.Key("type");
+        writer.Uint(flow.icmp_type);
+
+        writer.Key("code");
+        writer.Uint(flow.icmp_code);
+
+        writer.Key("identifier");
+        if (flow.icmp_type == 128 || flow.icmp_type == 129)
+        {
+            writer.Uint(flow.icmp_identifier);
+        }
+        else
+        {
+            writer.Null();
+        }
+
+        writer.EndObject();
+    }
 
     writer.Key("tcp_flag_counts");
     if (flow.protocol == 6)

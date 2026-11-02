@@ -212,7 +212,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
         std::uint8_t next_header = packet.data[ip_offset + 6];
         std::size_t current_offset = ip_offset + 40;
         std::size_t remaining_payload = ip_payload_length;
-        while (next_header != 6 && next_header != 17)
+        while (next_header != 6 && next_header != 17 && next_header != 58)
         {
             if (next_header == 44)
             {
@@ -259,7 +259,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
                 continue;
             }
 
-            error_message = "Unsupported IPv6 Next Header";
+            error_message = "Unsupported IPv6 Next Header: " + std::to_string(static_cast<unsigned int>(next_header));
             return false;
         }
 
@@ -306,7 +306,7 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
             //TCP flags are in the 14th byte from the start of the header
             decoded_packet.tcp_flags = packet.data[transport_offset + 13];
     }
-    else
+    else if (decoded_packet.protocol == 17)
     {
         //This is the UDP branch
         //UDP header has 8 bytes, we check the length of IP and available data
@@ -332,17 +332,51 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
         //UDP has no TCP flags
         decoded_packet.tcp_flags = 0;
     }
+    else if (decoded_packet.protocol == 58)
+    {
+        if (ip_payload_length < 4)
+        {
+            error_message = "Packet too short for ICMP header";
+            return false;
+        }
+        std::uint8_t icmp_type = packet.data[transport_offset];
+        std::uint8_t icmp_code = packet.data[transport_offset + 1];
+        decoded_packet.icmp_type = icmp_type;
+        decoded_packet.icmp_code = icmp_code;
+        decoded_packet.icmp_identifier = 0;
 
+        if (icmp_type == 128 || icmp_type == 129)
+        {
+            if (ip_payload_length < 8)
+            {
+                error_message = "Packet too short for ICMP header";
+                return false;
+            }
+            std::uint16_t icmp_echo_identifier = packet.data[transport_offset+4]<<8 | packet.data[transport_offset+5];
+            decoded_packet.icmp_identifier = icmp_echo_identifier;
+        }
+
+        decoded_packet.source_port = 0;
+        decoded_packet.destination_port = 0;
+
+
+    }
+    else
+    {
         //Ports info is at the beginning of both UDP and TCP header
         //Ports have 2 bytes each, first two for the source and the second two for the destination
         decoded_packet.source_port = static_cast<uint16_t>(packet.data[transport_offset] << 8 | packet.data[transport_offset + 1]);
         decoded_packet.destination_port = static_cast<uint16_t>(packet.data[transport_offset + 2] << 8 | packet.data[transport_offset + 3]);
+    }
 
-        //Time of the packet saved as seconds and microseconds
-        decoded_packet.timestamp = std::chrono::seconds(packet.header.ts.tv_sec) + std::chrono::microseconds(packet.header.ts.tv_usec);
 
-        //IPv4 packet length including its header
-        decoded_packet.packet_length = ip_total_length;
+
+
+    //Time of the packet saved as seconds and microseconds
+    decoded_packet.timestamp = std::chrono::seconds(packet.header.ts.tv_sec) + std::chrono::microseconds(packet.header.ts.tv_usec);
+
+    //IPv4 packet length including its header
+    decoded_packet.packet_length = ip_total_length;
 
     return true;
 

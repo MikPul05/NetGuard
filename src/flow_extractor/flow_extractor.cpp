@@ -21,21 +21,23 @@ void update_tcp_flag_counts(Flow& flow, const DecodedPacket& packet)
 bool FlowExtractor::process_packet(const Packet& packet)
 {
     std::string error_message;
-    DecodedPacket decoded_packet;
+    DecodedPacket decoded_packet{};
     if (!decode_packet(packet, decoded_packet, error_message))
     {
         std::cerr << "Skipping packet: " << error_message << '\n';
         return false;
     }
 
-    FlowKey flow_key {
-        decoded_packet.source_ip,
-        decoded_packet.destination_ip,
-        decoded_packet.source_port,
-        decoded_packet.destination_port,
-        decoded_packet.vlan_ids,
-        decoded_packet.protocol
-    };
+    FlowKey flow_key{};
+    flow_key.source_ip = decoded_packet.source_ip;
+    flow_key.destination_ip = decoded_packet.destination_ip;
+    flow_key.source_port = decoded_packet.source_port;
+    flow_key.destination_port = decoded_packet.destination_port;
+    flow_key.vlan_ids = decoded_packet.vlan_ids;
+    flow_key.protocol = decoded_packet.protocol;
+    flow_key.icmp_type = decoded_packet.icmp_type;
+    flow_key.icmp_code = decoded_packet.icmp_code;
+    flow_key.icmp_identifier = decoded_packet.icmp_identifier;
 
     constexpr std::chrono::seconds idle_timeout = std::chrono::seconds(30);
 
@@ -70,6 +72,9 @@ bool FlowExtractor::process_packet(const Packet& packet)
         flow.packet_count = 1;
         flow.bytes_transferred = decoded_packet.packet_length;
         flow.vlan_ids = decoded_packet.vlan_ids;
+        flow.icmp_type = decoded_packet.icmp_type;
+        flow.icmp_code = decoded_packet.icmp_code;
+        flow.icmp_identifier = decoded_packet.icmp_identifier;
         update_tcp_flag_counts(flow, decoded_packet);
         active_flows[flow_key] = flow;
     }

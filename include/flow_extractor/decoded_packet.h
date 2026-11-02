@@ -15,6 +15,9 @@ struct DecodedPacket
     std::size_t packet_length;
     std::uint8_t tcp_flags;
     std::vector<std::uint16_t> vlan_ids;
+    std::uint8_t icmp_type=0;
+    std::uint8_t icmp_code=0;
+    std::uint16_t icmp_identifier=0;
 };
 
 #endif //NETGUARD_DECODED_PACKET_H

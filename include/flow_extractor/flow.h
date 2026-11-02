@@ -12,8 +12,8 @@ struct Flow
     std::uint16_t source_port = 0;
     std::uint16_t destination_port = 0;
     unsigned int protocol = 0;
-    std::chrono::microseconds first_packet_time;
-    std::chrono::microseconds last_packet_time;
+    std::chrono::microseconds first_packet_time = std::chrono::microseconds::zero();
+    std::chrono::microseconds last_packet_time = std::chrono::microseconds::zero();
     std::vector<std::uint16_t> vlan_ids;
     std::uint64_t packet_count = 0;
     std::uint64_t tcp_syn_count = 0;
@@ -21,7 +21,10 @@ struct Flow
     std::uint64_t tcp_fin_count = 0;
     std::uint64_t tcp_rst_count = 0;
     std::uint64_t bytes_transferred = 0;
-    std::chrono::microseconds duration;
+    std::chrono::microseconds duration = std::chrono::microseconds::zero();
+    std::uint8_t icmp_type = 0;
+    std::uint8_t icmp_code = 0;
+    std::uint16_t icmp_identifier = 0;
 
 
 };
@@ -35,6 +38,9 @@ struct FlowKey
     std::uint16_t destination_port;
     std::vector<std::uint16_t> vlan_ids;
     unsigned int protocol;
+    std::uint8_t icmp_type=0;
+    std::uint8_t icmp_code=0;
+    std::uint16_t icmp_identifier=0;
 
     bool operator==(const FlowKey& other) const
     {
@@ -43,7 +49,10 @@ struct FlowKey
                 source_port == other.source_port &&
                     destination_port == other.destination_port &&
                         protocol == other.protocol &&
-                            vlan_ids == other.vlan_ids;
+                            vlan_ids == other.vlan_ids &&
+                                icmp_type == other.icmp_type &&
+                                    icmp_code == other.icmp_code &&
+                                        icmp_identifier == other.icmp_identifier;
     }
 };
 
@@ -71,6 +80,9 @@ struct FlowKeyHash
         {
             hash_combine(seed, id);
         }
+        hash_combine(seed, key.icmp_type);
+        hash_combine(seed, key.icmp_code);
+        hash_combine(seed, key.icmp_identifier);
 
         return seed;
     }
