@@ -176,11 +176,14 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
     }
     else if (ethernet_type == 0x86DD)
     {
+        //IPv6 header is always 40 bytes long
         if (packet.data.size() < ip_offset + 40)
         {
             error_message = "Packet too small for IPv6 header";
             return false;
         }
+
+        // The IPv6 version is stored in the first 4 bits of the first byte
         ip_version = packet.data[ip_offset] >> 4;
         if (ip_version != 6)
         {
@@ -196,30 +199,47 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
             return false;
         }
 
+        // Extracting Differentiated Services Code Point and Explicit Congestion Notification from Traffic Class
+        // Traffic Class is the 4 last bits of the first byte, and 4 first bits of the second byte
+        // DSCP is the first 6 bits of Traffic Class, and ECN is the last 2 bits
+        // The values are decoded here but we dont use them
         const std::uint8_t dscp = (packet.data[ip_offset] & 0x0F)<<2 | (packet.data[ip_offset+1] & 0xC0) >> 6;
         const std::uint8_t ecn = (packet.data[ip_offset+1] & 0x30) >> 4;
 
+        // Flow Label also is extracted here
         const std::uint32_t flow_label = (packet.data[ip_offset+1] & 0x0F)<<16 | packet.data[ip_offset+2]<<8 | packet.data[ip_offset+3];
 
+        // Payload length is the number of bytes after the first 40 bytes of the IPv6 header
+        // It includes extension headers and transport layer data
         ip_payload_length = packet.data[ip_offset+4]<<8 | packet.data[ip_offset+5];
         ip_total_length = 40 + ip_payload_length;
+
+        // Check that complete IPv6 packet is present in the captured data
         if (packet.data.size() < 40+ ip_payload_length + ip_offset)
         {
             error_message = "Truncated IPv6 packet";
             return false;
         }
 
+        // Next Header identifies the header immediately following the IPv6 base header
+        // If there is no extension header it identifies the upper layer protocol like IPv4 protocol field
+        // The offset starts at that header, and remaining payload tracks its available bytes
         std::uint8_t next_header = packet.data[ip_offset + 6];
         std::size_t current_offset = ip_offset + 40;
         std::size_t remaining_payload = ip_payload_length;
+
+        // Process supported IPv6 extension headers until a supported transport protocol is reached
         while (next_header != 6 && next_header != 17 && next_header != 58)
         {
+            // Next Header value 44 indicates that the following header is an IPv6 Fragment Header.
             if (next_header == 44)
             {
                 error_message = "IPv6 Fragment Header is not supported";
                 return false;
             }
 
+            // 0 is HOPOPT (Hop By Hop Options), 43 is IPv6-Route (routing header) and 60 is IPv6-Opts (destination options)
+            // they use the same format length
             if (next_header == 0 || next_header == 43 || next_header == 60)
             {
                 if (remaining_payload < 2)
@@ -227,17 +247,20 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
                     error_message = "Truncated IPv6 extension header";
                     return false;
                 }
+                // gives the number of 8 byte units beyond the first 8 bytes of the extension header
                 const std::size_t extension_length = (static_cast<std::size_t>(packet.data[current_offset + 1]) + 1) * 8;
                 if (extension_length > remaining_payload)
                 {
                     error_message = "Invalid IPv6 extension header length";
                     return false;
                 }
+                // Read the next header type, and advance past this extension header
                 next_header = packet.data[current_offset];
                 current_offset += extension_length;
                 remaining_payload -= extension_length;
                 continue;
             }
+            // The authentication header uses a different length format
             if (next_header == 51)
             {
                 if (remaining_payload < 2)
@@ -245,8 +268,8 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
                     error_message = "Truncated IPv6 authentication header";
                     return false;
                 }
+                // Authentication Header payload length gives the length in 4 byte units, excluding the first 8 bytes of the header.
                 const std::size_t extension_length = (static_cast<std::size_t>(packet.data[current_offset + 1]) + 2) * 4;
-
                 if (extension_length > remaining_payload)
                 {
                     error_message = "Invalid IPv6 Authentication Header length";
@@ -259,14 +282,18 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
                 continue;
             }
 
+            // Reject unsupported next header values
             error_message = "Unsupported IPv6 Next Header: " + std::to_string(static_cast<unsigned int>(next_header));
             return false;
         }
 
+        // Save the final protocol and offset and length of its payload
         decoded_packet.protocol = next_header;
         transport_offset = current_offset;
         ip_payload_length = remaining_payload;
 
+        // IPv6 source and dest addresses are at fixed offsets in the base header
+        // We use a supporting function to concatenate the bytes
         decoded_packet.source_ip = format_ipv6_address(packet, ip_offset + 8);
         decoded_packet.destination_ip = format_ipv6_address(packet, ip_offset + 24);
 
@@ -290,10 +317,10 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
             //Given value means groups of 4 bytes
             const std::size_t tcp_header_length = (packet.data[transport_offset + 12] >> 4) * 4;
 
-            //check if TCP header fits inside the IPv4 payload
+            //check if TCP header fits inside the IP payload
             if (tcp_header_length > ip_payload_length)
             {
-                error_message = "TCP header is longer than the IPv4 payload";
+                error_message = "TCP header is longer than the IP payload";
                 return false;
             }
 
@@ -305,6 +332,11 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
             }
             //TCP flags are in the 14th byte from the start of the header
             decoded_packet.tcp_flags = packet.data[transport_offset + 13];
+
+            //Ports info is at the beginning of both UDP and TCP header
+            //Ports have 2 bytes each, first two for the source and the second two for the destination
+            decoded_packet.source_port = static_cast<uint16_t>(packet.data[transport_offset] << 8 | packet.data[transport_offset + 1]);
+            decoded_packet.destination_port = static_cast<uint16_t>(packet.data[transport_offset + 2] << 8 | packet.data[transport_offset + 3]);
     }
     else if (decoded_packet.protocol == 17)
     {
@@ -322,12 +354,17 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
                 (static_cast<std::uint16_t>(packet.data[transport_offset + 5]));
 
         //if less than 8 then its invalid, since header must have 8 bytes
-        //UDP length must not exceed the IPv4 payload length
+        //UDP length must not exceed the IP payload length
         if (udp_length < 8 || udp_length > ip_payload_length)
         {
             error_message = "Invalid UDP length";
             return false;
         }
+
+        //Ports info is at the beginning of both UDP and TCP header
+        //Ports have 2 bytes each, first two for the source and the second two for the destination
+        decoded_packet.source_port = static_cast<uint16_t>(packet.data[transport_offset] << 8 | packet.data[transport_offset + 1]);
+        decoded_packet.destination_port = static_cast<uint16_t>(packet.data[transport_offset + 2] << 8 | packet.data[transport_offset + 3]);
 
         //UDP has no TCP flags
         decoded_packet.tcp_flags = 0;
@@ -363,10 +400,8 @@ bool decode_packet(const Packet& packet, DecodedPacket& decoded_packet, std::str
     }
     else
     {
-        //Ports info is at the beginning of both UDP and TCP header
-        //Ports have 2 bytes each, first two for the source and the second two for the destination
-        decoded_packet.source_port = static_cast<uint16_t>(packet.data[transport_offset] << 8 | packet.data[transport_offset + 1]);
-        decoded_packet.destination_port = static_cast<uint16_t>(packet.data[transport_offset + 2] << 8 | packet.data[transport_offset + 3]);
+        error_message = "Unsupported transport protocol";
+        return false;
     }
 
 
