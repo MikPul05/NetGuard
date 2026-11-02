@@ -49,7 +49,7 @@ The program currently outputs a JSONL file with the following structure
 - start_time_unix_us - Timestamp of the first packet, in microseconds since the Unix epoch
 - duration_us - Flow duration in microseconds
 - packet_count - Number of packets included in the flow
-- byte_count - Sum of IPv4 packet lengths, including IPv4 headers but excluding Ethernet and VLAN headers
+- byte_count - Sum of IPv4/IPv6 packet lengths, including IPv4 headers but excluding Ethernet and VLAN headers
 - vlan_ids - VLAN IDs in outer-to-inner tag order. An untagged packet has an empty list 
 - tcp_flag_counts - For TCP, counts packets that contain each listed flag. A packet may increment more than one count. We can add more flags if needed. For UDP, this field is null
 

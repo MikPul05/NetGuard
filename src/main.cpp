@@ -38,6 +38,7 @@ int main()
     std::size_t ipv6_packet_count = 0;
     std::size_t other_packet_count = 0;
     std::size_t skipped_ipv4_packet_count = 0;
+    std::size_t skipped_ipv6_packet_count = 0;
     std::uint16_t ethernet_type = 0;
     std::uint16_t ip_offset = 0;
     FlowExtractor flow_extractor;
@@ -51,51 +52,60 @@ int main()
         switch (status)
         {
             case PacketReadStatus::PacketRead:
-                packet_count++;
-            const auto current_packet_time = std::chrono::seconds(packet.header.ts.tv_sec) + std::chrono::microseconds(packet.header.ts.tv_usec);
-
-                if (current_packet_time < packet_time && said == false)
                 {
-                    std::cerr<<"Data in file is not chronological"<<'\n';
-                    said = true;
-                }
-                packet_time = current_packet_time;
+                    packet_count++;
+                    const auto current_packet_time = std::chrono::seconds(packet.header.ts.tv_sec) + std::chrono::microseconds(packet.header.ts.tv_usec);
 
-                if (!extract_ethernet_type(packet, ethernet_type, ip_offset, vlan_ids, error_message))
-                {
-                    malformed_packet_count++;
-                    std::cerr<<"Skipping malformed packet: "<<packet_count<<":"<<error_message<<"\n";
+                    if (current_packet_time < packet_time && said == false)
+                    {
+                        std::cerr<<"Data in file is not chronological"<<'\n';
+                        said = true;
+                    }
+                    packet_time = current_packet_time;
+
+                    if (!extract_ethernet_type(packet, ethernet_type, ip_offset, vlan_ids, error_message))
+                    {
+                        malformed_packet_count++;
+                        std::cerr<<"Skipping malformed packet: "<<packet_count<<":"<<error_message<<"\n";
+                        break;
+                    }
+                    if (ethernet_type == 0x0800) //IPv4
+                    {
+                        ipv4_packet_count++;
+                        if (!flow_extractor.process_packet(packet))
+                        {
+                            skipped_ipv4_packet_count++;
+                        }
+                    }
+                    else if (ethernet_type == 0x86DD) //IPv6
+                    {
+                        ipv6_packet_count++;
+                        if (!flow_extractor.process_packet(packet))
+                        {
+                            skipped_ipv6_packet_count++;
+                        }
+                    }
+                    else
+                    {
+                        other_packet_count++;
+                    }
                     break;
                 }
-                else if (ethernet_type == 0x0800) //IPv4
-                {
-                    ipv4_packet_count++;
-                    if (!flow_extractor.process_packet(packet))
-                    {
-                        skipped_ipv4_packet_count++;
-                    }
-                }
-                else if (ethernet_type == 0x86DD) //IPv6
-                {
-                    ipv6_packet_count++;
-                }
-                else
-                {
-                    other_packet_count++;
-                }
-                break;
-
             case PacketReadStatus::EndOfFile:
-                loop = false;
-                break;
-
+                {
+                    loop = false;
+                    break;
+                }
             case PacketReadStatus::Error:
-                std::cerr<<"Error while reading the file: "<<error_message<<'\n';
-                pcap_close(capture);
-                return 1;
-
+                {
+                    std::cerr<<"Error while reading the file: "<<error_message<<'\n';
+                    pcap_close(capture);
+                    return 1;
+                }
             default:
-                break;
+                {
+                    break;
+                }
         }
     }
 
@@ -137,13 +147,14 @@ int main()
         return 1;
     }
 
-    // std::cout<<"Packets read: "<<packet_count<<'\n';
-    // std::cout<<"Malformed packets: "<<malformed_packet_count<<'\n';
-    // std::cout<<"IPv4: "<<ipv4_packet_count<<'\n';
-    // std::cout<<"IPv6: "<<ipv6_packet_count<<'\n';
-    // std::cout<<"Skipped IPv4: "<<skipped_ipv4_packet_count<<'\n';
-    // std::cout<<"Other packets: "<<other_packet_count<<'\n';
-    // std::cout<<"Amount of flows captured: "<<flows.size()<<'\n';
+    std::cout<<"Packets read: "<<packet_count<<'\n';
+    std::cout<<"Malformed packets: "<<malformed_packet_count<<'\n';
+    std::cout<<"IPv4: "<<ipv4_packet_count<<'\n';
+    std::cout<<"IPv6: "<<ipv6_packet_count<<'\n';
+    std::cout<<"Skipped IPv4: "<<skipped_ipv4_packet_count<<'\n';
+    std::cout<<"Skipped IPv6: "<<skipped_ipv6_packet_count<<'\n';
+    std::cout<<"Other packets: "<<other_packet_count<<'\n';
+    std::cout<<"Amount of flows captured: "<<flows.size()<<'\n';
     // for (const Flow& flow : flows)
     // {
     //     std::cout << flow.source_ip << ':' << flow.source_port
