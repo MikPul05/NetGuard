@@ -1,0 +1,14 @@
+services:
+  netguard:
+    build: .
+    image: netguard:latest
+    # Run as your host user so result files in ./data are not owned by root.
+    # On Linux: export UID GID (or put them in .env) if yours differ from 1000.
+    user: "${UID:-1000}:${GID:-1000}"
+    # Put your .pcap/.pcapng files in ./data — results are written there too.
+    volumes:
+      - ./data:/data
+    # Example:
+    #   docker compose run --rm netguard pipeline capture.pcap
+    #   docker compose run --rm netguard detect out/flows.jsonl --out out/detections.jsonl
+    command: ["help"]

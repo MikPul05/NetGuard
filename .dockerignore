@@ -1,0 +1,27 @@
+# VCS / IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Local build output
+build/
+cmake-build-*/
+out/
+vcpkg_installed/
+CMakeUserPresets.json
+
+# Python cache
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+
+# Runtime data and results (mounted as a volume instead)
+data/
+detection_engine/detections.jsonl
+
+# Docs / Docker files not needed in the image
+*.md
+docker-compose.yml
+Dockerfile
+.dockerignore

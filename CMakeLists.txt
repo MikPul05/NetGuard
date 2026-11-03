@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.16...4.0)
 project(NetGuard)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -27,5 +27,13 @@ target_include_directories(NetGuard PRIVATE ${PCAP_INCLUDE_DIR})
 target_link_libraries(NetGuard PRIVATE ${PCAP_LIBRARY})
 
 find_package(RapidJSON CONFIG REQUIRED)
-target_link_libraries(NetGuard PRIVATE RapidJSON rapidjson)
-target_include_directories(NetGuard PRIVATE ${PCAP_INCLUDE_DIR} ${RAPIDJSON_INCLUDE_DIRS})
+# vcpkg / newer RapidJSON export an imported target; the Debian/Ubuntu package
+# (1.1.0) only sets include-dir variables, so fall back to those.
+if(TARGET rapidjson)
+    target_link_libraries(NetGuard PRIVATE rapidjson)
+elseif(TARGET RapidJSON)
+    target_link_libraries(NetGuard PRIVATE RapidJSON)
+endif()
+target_include_directories(NetGuard PRIVATE ${PCAP_INCLUDE_DIR} ${RAPIDJSON_INCLUDE_DIRS} ${RapidJSON_INCLUDE_DIRS})
+
+install(TARGETS NetGuard RUNTIME DESTINATION bin)

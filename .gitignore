@@ -1061,3 +1061,6 @@ CMakeUserPresets.json
 /DNSlookup.pcapng
 *.pdf
 *.jsonl
+# Docker volume (input PCAPs and results)
+/data/*
+!/data/.gitkeep
