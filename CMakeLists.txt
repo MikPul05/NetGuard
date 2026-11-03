@@ -4,21 +4,21 @@ project(NetGuard)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(NetGuard
-        src/main.cpp
-        include/pcap_importer/input_file.h
-        src/pcap_importer/input_file.cpp
-        include/pcap_importer/packet_reader.h
-        src/pcap_importer/packet_reader.cpp
-        include/pcap_importer/validate_link.h
-        src/pcap_importer/validate_link.cpp
-        include/flow_extractor/packet_decoder.h
-        src/flow_extractor/packet_decoder.cpp
-        include/flow_extractor/flow.h
-        include/flow_extractor/flow_extractor.h
-        src/flow_extractor/flow_extractor.cpp
-        include/flow_extractor/decoded_packet.h
-        include/flow_extractor/flow_serializer.h
-        src/flow_extractor/flow_serializer.cpp)
+        importer/src/main.cpp
+        importer/include/pcap_importer/input_file.h
+        importer/src/pcap_importer/input_file.cpp
+        importer/include/pcap_importer/packet_reader.h
+        importer/src/pcap_importer/packet_reader.cpp
+        importer/include/pcap_importer/validate_link.h
+        importer/src/pcap_importer/validate_link.cpp
+        importer/include/flow_extractor/packet_decoder.h
+        importer/src/flow_extractor/packet_decoder.cpp
+        importer/include/flow_extractor/flow.h
+        importer/include/flow_extractor/flow_extractor.h
+        importer/src/flow_extractor/flow_extractor.cpp
+        importer/include/flow_extractor/decoded_packet.h
+        importer/include/flow_extractor/flow_serializer.h
+        importer/src/flow_extractor/flow_serializer.cpp)
 
 find_path(PCAP_INCLUDE_DIR NAMES pcap/pcap.h REQUIRED)
 find_library(PCAP_LIBRARY NAMES pcap REQUIRED)
