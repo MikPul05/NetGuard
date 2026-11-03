@@ -65,3 +65,69 @@ Changes that break compatibility, like i said, will require a new schema_version
 
 
 
+
+## Running with Docker
+
+The image builds the C++ importer and bundles it with the Python detection engine, so nothing (libpcap, RapidJSON, vcpkg, Python) has to be installed on the host.
+
+```bash
+# build the image
+docker compose build
+
+# put your capture in ./data, then run the whole pipeline (PCAP -> flows -> detections)
+cp capture.pcap data/
+docker compose run --rm netguard pipeline capture.pcap
+# results: data/out/flows.jsonl and data/out/detections.jsonl
+```
+
+Individual steps:
+
+```bash
+docker compose run --rm netguard extract  capture.pcap flows.jsonl
+docker compose run --rm netguard detect   flows.jsonl --out detections.jsonl
+docker compose run --rm netguard evaluate flows.jsonl labels.csv
+docker compose run --rm netguard demo      # engine on the bundled sample flows
+docker compose run --rm netguard help
+```
+
+All paths are relative to `./data` (mounted as `/data` in the container). The bundled `detection_engine/config.toml` is used by default; to use your own, put it in `./data` and pass `--config config.toml`.
+
+Without Compose:
+
+```bash
+docker build -t netguard .
+docker run --rm -v "$PWD/data:/data" netguard pipeline capture.pcap
+```
+
+## Streaming with Kafka
+
+`docker compose up` starts the message broker and the streaming part of the platform:
+
+| Service | What it does |
+|---|---|
+| `kafka` | Apache Kafka 3.9 (KRaft, single node). Inside Docker: `kafka:9092`, from the host: `localhost:9094` |
+| `kafka-init` | creates topics `flows` and `detections` (3 partitions each), then exits |
+| `kafka-ui` | web UI for topics and messages: http://localhost:8080 |
+| `detector` | consumes `flows`, runs the detection engine, publishes to `detections` and appends to `data/stream/detections.jsonl` |
+
+```bash
+docker compose up -d --build                         # start Kafka + detector
+cp capture.pcap data/
+docker compose run --rm netguard stream capture.pcap  # PCAP -> importer -> topic "flows"
+docker compose logs -f detector                      # watch detections arrive
+```
+
+Other commands:
+
+```bash
+docker compose run --rm netguard publish flows.jsonl --rate 5000   # replay a flows file at 5000 flows/s
+docker compose down        # stop everything (Kafka data is kept in a volume)
+docker compose down -v     # stop and delete Kafka data
+```
+
+How the detector works: flows are kept in a sliding event-time buffer (180 s by default) and re-evaluated by the batch engine every 2 s. A detection is published only once its time window has closed (5 s grace period for late flows); when no new flows arrive for 5 s, remaining open windows are flushed. Detection IDs are deterministic UUIDs, so the same detection always gets the same ID.
+
+Current limitations:
+- Run a single `detector` instance for now. Flows are keyed by source IP, so with several instances each one would only see part of the traffic per destination (DoS rule).
+- Offsets are committed after each run; after a restart the history buffer starts empty, so windows in progress at the time of the restart may be missed.
+- The importer still writes JSONL first and `publish` sends it to Kafka; a native Kafka producer in C++ (librdkafka) can replace that step later.

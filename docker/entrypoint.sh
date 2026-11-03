@@ -4,6 +4,7 @@
 set -eu
 
 ENGINE_DIR=/app/detection_engine
+STREAMING_DIR=/app/streaming
 DEFAULT_CONFIG="$ENGINE_DIR/config.toml"
 
 usage() {
@@ -23,6 +24,16 @@ Usage:
   netguard pipeline <input.pcap|pcapng> [output_dir]
       extract + detect in one go. Writes <output_dir>/flows.jsonl and
       <output_dir>/detections.jsonl (default output_dir: out, i.e. /data/out).
+
+  netguard publish <flows.jsonl> [--rate N]
+      Publish a flows file to the Kafka topic "flows" (N = flows/s, 0 = max).
+
+  netguard stream <input.pcap|pcapng> [--rate N]
+      extract + publish: PCAP -> flows -> Kafka. The detector service
+      picks the flows up and writes detections to the "detections" topic.
+
+  netguard stream-detect [--out FILE] [...]
+      Run the Kafka consumer/detector (normally started by docker compose).
 
   netguard demo
       Run the detection engine on the bundled sample flows.
@@ -75,6 +86,13 @@ evaluate() {
     python "$ENGINE_DIR/evaluate.py" "$@"
 }
 
+detect_stream() {
+    if with_default_config "$@"; then
+        set -- "$@" --config "$DEFAULT_CONFIG"
+    fi
+    exec python "$STREAMING_DIR/stream_detect.py" "$@"
+}
+
 cmd="${1:-help}"
 [ "$#" -gt 0 ] && shift
 
@@ -91,6 +109,19 @@ case "$cmd" in
         extract "$1" "$out_dir/flows.jsonl"
         detect "$out_dir/flows.jsonl" --out "$out_dir/detections.jsonl"
         ;;
+    publish)  python "$STREAMING_DIR/publish_flows.py" "$@" ;;
+    stream)
+        if [ "$#" -lt 1 ]; then
+            echo "stream: expected <input.pcap> [--rate N]" >&2
+            exit 2
+        fi
+        pcap="$1"; shift
+        name="$(basename "$pcap")"
+        flows="stream/${name%.*}.flows.jsonl"
+        extract "$pcap" "$flows"
+        python "$STREAMING_DIR/publish_flows.py" "$flows" "$@"
+        ;;
+    stream-detect) detect_stream "$@" ;;
     demo)
         detect "$ENGINE_DIR/sample_data/flows_example.jsonl" --out /data/demo_detections.jsonl
         ;;

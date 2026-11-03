@@ -33,8 +33,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libpcap0.8 \
     && rm -rf /var/lib/apt/lists/*
 
+COPY streaming/requirements.txt /tmp/streaming-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/streaming-requirements.txt \
+    && rm /tmp/streaming-requirements.txt
+
 COPY --from=builder /opt/netguard/bin/NetGuard /usr/local/bin/netguard-importer
 COPY detection_engine /app/detection_engine
+COPY streaming /app/streaming
 COPY docker/entrypoint.sh /usr/local/bin/netguard
 RUN chmod +x /usr/local/bin/netguard \
     && useradd --create-home --uid 1000 netguard \
