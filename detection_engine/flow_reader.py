@@ -3,8 +3,11 @@ import json
 SUPPORTED_SCHEMA_VERSION = 1
 TCP = 6
 UDP = 17
+ICMPV6 = 58
+ICMPV6_ECHO_REQUEST = 128
+
+
 def read_flows(path):
-   
     flows = []
     bad_lines = 0
 
@@ -28,10 +31,13 @@ def read_flows(path):
     flows.sort(key=lambda flow: flow["start_time_unix_us"])
     return flows, bad_lines
 
+
 def is_connection_attempt(flow):
-    
     if flow["protocol"] == UDP:
         return True
+    if flow["protocol"] == ICMPV6:
+        icmp = flow.get("icmpv6") or {}
+        return icmp.get("type") == ICMPV6_ECHO_REQUEST
     if flow["protocol"] != TCP:
         return False
 

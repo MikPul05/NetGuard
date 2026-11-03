@@ -10,6 +10,7 @@ from engine import detect
 
 US = 1_000_000
 
+
 def read_labels(path):
     labels = []
     with open(path, encoding="utf-8") as f:
@@ -17,11 +18,12 @@ def read_labels(path):
             labels.append({
                 "start_us": int(float(row["start_unix_s"]) * US),
                 "end_us": int(float(row["end_unix_s"]) * US),
-                "source": ipaddress.ip_network(row["source_ip"]),   
+                "source": ipaddress.ip_network(row["source_ip"]),
                 "destination_ip": row["destination_ip"],
                 "attack_type": row["attack_type"],
             })
     return labels
+
 
 def build_units(flows, window_seconds):
     units = {}
@@ -48,9 +50,10 @@ def unit_is_flagged(src, start_us, window_seconds, dsts, detections):
             continue
         if d["source_ip"] == src:
             return True
-        if d["source_ip"] == "multiple" and d["destination_ip"] in dsts:   
+        if d["source_ip"] == "multiple" and d["destination_ip"] in dsts:
             return True
     return False
+
 
 def metrics(units, labels, detections, window_seconds):
     tp = fp = fn = tn = 0
@@ -83,14 +86,15 @@ def metrics(units, labels, detections, window_seconds):
         "detected_attacks": detected_labels,
     }
 
+
 def main():
-    parser = argparse.ArgumentParser(description="NetGuard - ocena jakości detekcji")
-    parser.add_argument("flows")
-    parser.add_argument("labels")
-    parser.add_argument("--config", default="config.toml")
+    parser = argparse.ArgumentParser(description="NetGuard - detection quality evaluation")
+    parser.add_argument("flows", help="flows JSONL file produced by the Flow Extractor")
+    parser.add_argument("labels", help="ground truth labels CSV file")
+    parser.add_argument("--config", default="config.toml", help="configuration file with thresholds")
     args = parser.parse_args()
 
-    with open(args.config, "rb") as f:      
+    with open(args.config, "rb") as f:
         config = tomllib.load(f)
 
     flows, _ = read_flows(args.flows)
@@ -99,20 +103,20 @@ def main():
     w = config["evaluation"]["window_seconds"]
     units = build_units(flows, w)
 
-    print(f"Jednostki oceny: {len(units)}  (host, okno {w} s)")
-    print(f"Ataki w etykietach: {', '.join(l['attack_type'] for l in labels)}\n")
-    print(f"{'Metoda':14s} {'TP':>4s} {'FP':>4s} {'FN':>4s} {'TN':>5s} "
+    print(f"Evaluation units: {len(units)}  (host, {w} s window)")
+    print(f"Labelled attacks: {', '.join(l['attack_type'] for l in labels)}\n")
+    print(f"{'Method':14s} {'TP':>4s} {'FP':>4s} {'FN':>4s} {'TN':>5s} "
           f"{'Precision':>10s} {'Recall':>7s} {'F1':>6s} {'FPR':>6s} {'FNR':>6s}")
     for name in ["rule", "statistical", "combined"]:
         m = metrics(units, labels, result[name], w)
         print(f"{name:14s} {m['TP']:4d} {m['FP']:4d} {m['FN']:4d} {m['TN']:5d} "
               f"{m['precision']:10.3f} {m['recall']:7.3f} {m['F1']:6.3f} {m['FPR']:6.3f} {m['FNR']:6.3f}")
 
-    print("\nKtóre ataki wykryła każda metoda:")
+    print("\nAttacks detected by each method:")
     all_types = [l["attack_type"] for l in labels]
     for name in ["rule", "statistical", "combined"]:
         found = metrics(units, labels, result[name], w)["detected_attacks"]
-        marks = "  ".join(f"{t}:{'TAK' if t in found else 'nie'}" for t in all_types)
+        marks = "  ".join(f"{t}:{'YES' if t in found else 'no'}" for t in all_types)
         print(f"  {name:12s} {marks}")
 
 
