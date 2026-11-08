@@ -1064,3 +1064,16 @@ CMakeUserPresets.json
 # Docker volume (input PCAPs and results)
 /data/*
 !/data/.gitkeep
+
+# Environment & secrets
+.env
+.env.*
+
+# Python virtual environments
+venv/
+.venv/
+
+# Packet captures & streaming output
+*.pcap
+*.pcapng
+stream/

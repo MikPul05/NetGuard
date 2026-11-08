@@ -78,13 +78,66 @@ services:
     restart: unless-stopped
 
   # --- CLI tool (one-off commands) -----------------------------------------
-  # Examples:
-  #   docker compose run --rm netguard pipeline capture.pcap   (offline, files only)
-  #   docker compose run --rm netguard stream capture.pcap     (PCAP -> Kafka)
   netguard:
     <<: *netguard
     command: ["help"]
     profiles: ["cli"]
+    
+  db:
+    image: postgres:15-alpine
+    container_name: netguard_db
+    environment:
+      POSTGRES_USER: netguard_user
+      POSTGRES_PASSWORD: netguard_password
+      POSTGRES_DB: netguard_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netguard_user -d netguard_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netguard_api
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgresql://netguard_user:netguard_password@db:5432/netguard_db
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      FLASK_ENV: development
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+       
+  consumer:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netguard_consumer
+    command: ["python", "-u", "consumer.py"]
+    volumes:
+      - ./backend:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: postgresql://netguard_user:netguard_password@db:5432/netguard_db
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DETECTIONS_TOPIC: detections
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   kafka-data:
+  postgres_data:
