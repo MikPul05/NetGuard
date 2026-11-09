@@ -34,7 +34,7 @@ CREATE TABLE alerts (
 );
 
 CREATE TABLE detections (
-    id VARCHAR(20) PRIMARY KEY,
+    id VARCHAR(40) PRIMARY KEY,
     alert_id INTEGER REFERENCES alerts(id) ON DELETE SET NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     type VARCHAR(50) NOT NULL,
