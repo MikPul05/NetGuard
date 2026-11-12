@@ -109,3 +109,27 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.navbar {
+  display: flex;        /* puts the links in a row */
+  gap: 16px;            /* space between the links */
+  flex-wrap: wrap;      /* wraps onto a second line on narrow screens */
+  padding: 12px 16px;
+  border-bottom: 1px solid #ddd;
+}
+  .muted { color: #666; font-size: 14px; }
+  .error { color: #c62828; }
+
+  .table { border-collapse: collapse; width: 100%; background: #fff; }
+  .table th, .table td { padding: 8px 10px; border-bottom: 1px solid #e3e5e8; text-align: left; }
+  .table th { background: #f3f4f6; }
+  .clickable { cursor: pointer; }
+  .clickable:hover { background: #f5f8ff; }
+  .new-row { animation: flash 5s ease-out; }
+  @keyframes flash { from { background: #fff3c4; } to { background: transparent; } }
+
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; color: #fff; }
+  .badge-low { background: #6b7280; }
+  .badge-medium { background: #ca8a04; }
+  .badge-high { background: #ea580c; }
+  .badge-critical { background: #dc2626; }
