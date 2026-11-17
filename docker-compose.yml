@@ -105,23 +105,36 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: netguard-backend:latest
     container_name: netguard_api
     volumes:
       - ./backend:/app
+      - ./data:/data:ro
     environment:
       DATABASE_URL: postgresql://netguard_user:netguard_password@db:5432/netguard_db
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      FLASK_ENV: development
+      KAFKA_HOST: kafka
+      KAFKA_PORT: "9092"
     ports:
       - "5000:5000"
     depends_on:
       db:
         condition: service_healthy
-       
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:5000/health > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   consumer:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: netguard-backend:latest
     container_name: netguard_consumer
     command: ["python", "-u", "consumer.py"]
     volumes:
@@ -134,8 +147,42 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      kafka:
+      kafka-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: netguard-backend:latest
+    command: ["python", "seed.py"]
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgresql://netguard_user:netguard_password@db:5432/netguard_db
+    depends_on:
+      db:
         condition: service_healthy
+    profiles: ["seed"]
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: netguard-frontend:latest
+    container_name: netguard_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      API_URL: http://api:5000
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
