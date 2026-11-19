@@ -20,3 +20,4 @@
   }
   export const PROTOCOLS = { 1: 'ICMP', 6: 'TCP', 17: 'UDP', 58: 'ICMPv6' }
   export const STAT_META_KEYS = ['zScoreFeature', 'baselineMean', 'baselineStd']
+   export const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
