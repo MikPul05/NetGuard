@@ -160,3 +160,7 @@ code {
   .filters input, .filters select { padding: 6px; }
   .filter-buttons { display: flex; gap: 8px; align-items: flex-end; }
   .pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; }
+   .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 16px; margin-bottom: 24px; }
+  .chart-grid .card { margin: 0; }
+  .card h3 { margin: 0 0 8px; font-size: 16px; }
+  .card .table { margin-bottom: 12px; }

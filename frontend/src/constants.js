@@ -21,3 +21,5 @@
   export const PROTOCOLS = { 1: 'ICMP', 6: 'TCP', 17: 'UDP', 58: 'ICMPv6' }
   export const STAT_META_KEYS = ['zScoreFeature', 'baselineMean', 'baselineStd']
    export const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+  export const SEVERITY_COLORS = { LOW: '#6b7280', MEDIUM: '#ca8a04', HIGH: '#ea580c', CRITICAL: '#dc2626' }
+  export const METHOD_LABELS = { rule: 'Rule only', statistical: 'Statistical only', combined: 'Rule + statistical' }
