@@ -160,7 +160,16 @@ code {
   .filters input, .filters select { padding: 6px; }
   .filter-buttons { display: flex; gap: 8px; align-items: flex-end; }
   .pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; }
+
    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 16px; margin-bottom: 24px; }
   .chart-grid .card { margin: 0; }
   .card h3 { margin: 0 0 8px; font-size: 16px; }
   .card .table { margin-bottom: 12px; }
+
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: #fff; border: 1px solid #e3e5e8; border-top: 4px solid #2563eb; border-radius: 8px; padding: 12px; }
+  .tile-value { font-size: 24px; font-weight: 700; }
+  .tile-label { color: #666; font-size: 13px; }
+  .preview-note { background: #fff8e1; border: 1px solid #f0d58a; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+  .navbar .health { margin-left: auto; font-size: 13px; color: #666; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
