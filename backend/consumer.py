@@ -123,7 +123,11 @@ def persist_detection(det, cur):
     ))
 
 
-def persist_flow(flow, cur):
+def persist_flow(data, cur):
+    # Unwrap nested "flow" payload if present, otherwise fall back to root dict
+    flow = data["flow"] if isinstance(data.get("flow"), dict) else data
+    input_meta = data.get("input") if isinstance(data.get("input"), dict) else {}
+
     cur.execute("""
         INSERT INTO flows (
             start_time_unix_us, duration_us, source_ip, destination_ip,
@@ -141,7 +145,7 @@ def persist_flow(flow, cur):
         int(flow.get("packetCount", flow.get("packet_count", 1))),
         int(flow.get("byteCount", flow.get("byte_count", 64))),
         json.dumps(flow.get("tcpFlags", flow.get("tcp_flags", {}))),
-        flow.get("inputFile", flow.get("input_file", "stream"))
+        flow.get("inputFile", flow.get("input_file", input_meta.get("file", "stream")))
     ))
 
 
