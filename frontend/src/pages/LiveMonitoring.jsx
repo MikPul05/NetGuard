@@ -10,8 +10,7 @@
   import { usePolling } from '../hooks/usePolling.js'
   import { formatBytes, formatIso } from '../utils/format.js'
 
-  // Set to false once the consumer stores flows correctly (backend fix)
-  const TRAFFIC_PREVIEW = true
+
 
   const fmtRate = (x) => (x ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 })
 
@@ -69,11 +68,7 @@
           )}
         </div>
 
-        {/* --- Traffic: correct after the flow storage fix --- */}
-        <h2>Traffic</h2>
-        {TRAFFIC_PREVIEW && (
-          <p className="preview-note">Preview – traffic values are not reliable until flow storage is fixed in the backend.</p>
-        )}
+
 
         {c && (
           <div className="tiles">
