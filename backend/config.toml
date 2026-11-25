@@ -1,0 +1,37 @@
+[evaluation]
+window_seconds = 10
+
+[rules.brute_force]
+enabled = true
+min_attempts = 10
+ports = [
+    21,
+    22,
+    23,
+    3389,
+]
+window_seconds = 60
+
+[rules.dos]
+enabled = true
+max_unique_dst_ports = 5
+min_attempts_to_destination = 100
+window_seconds = 10
+
+[rules.port_scan]
+enabled = true
+min_unique_dst_ports = 20
+window_seconds = 60
+
+[statistical]
+baseline_seconds = 30
+enabled = true
+features = [
+    "connection_attempts",
+    "unique_dst_ports",
+    "unique_dst_ips",
+    "byte_count",
+]
+min_std = 1
+window_seconds = 10
+z_threshold = 3

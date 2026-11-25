@@ -173,3 +173,12 @@ code {
   .preview-note { background: #fff8e1; border: 1px solid #f0d58a; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
   .navbar .health { margin-left: auto; font-size: 13px; color: #666; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+
+   .config-field { display: grid; grid-template-columns: minmax(160px, 260px) 1fr; gap: 12px; align-items: start; padding: 6px 0; }
+  .config-label { font-size: 14px; padding-top: 4px; }
+  .config-field input:not([type=checkbox]), .config-field select { padding: 6px; width: 100%; max-width: 240px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  .config-actions { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+                    padding: 12px 0; background: var(--bg); border-top: 1px solid #e3e5e8; }
+  .ok { color: #15803d; }
+  @media (max-width: 600px) { .config-field { grid-template-columns: 1fr; gap: 4px; } }
